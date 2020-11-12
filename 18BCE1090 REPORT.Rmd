@@ -1,0 +1,1501 @@
+---
+title: 'Review3 - Exploratory Data Analysis on Zomato Restaurants present in India '
+output:
+  html_document:
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+  pdf_document: default
+---
+### Reg. No: 18BCE1090
+
+### Name: DISHANTH G
+
+## Setup
+
+```{r}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(ggplot2)
+```
+
+
+* * *
+
+## **What problem are you trying to solve?**
+
+### With this exploratory data analysis, upcoming startup restaurants which have an idea to partner with zomato can be aware of the factors that affect their business and also the improvements existing restaurants can make from the analysis.
+### Some of the factors we will analyze are restaurant Location,Establishment,Cuisine Type,price range,reviews,customer votes,delivery and takeaway options.
+### To find  people’s major favourite cuisines,taste and how it is differing from city to city.
+
+
+
+* * *
+* * *
+
+## **What data have you chosen?(Chosen Dataset, Source of dataset, Description of dataset, basic commands to describe dataset)**
+
+### **Chosen Dataset**:Zomato Restaurants in India
+
+### **Source of Dataset**:From Kaggle
+
+
+
+### **Description of the dataset**:The dataset was taken from zomato API in JSON/XML format and has been published in Kaggle as a CSV file.The dataset consist of restaurants present in major cities of India along with details like Location address,cusines types,timings,average cost for 2 people,ratings,votes and delivery options.
+
+
+### **Basic Commands**:
+
+#### **(i)Load Data**:
+```{r}
+df=read.csv("zomato_restaurants_in_India.csv")
+```
+#### **(ii)First 3 rows of the dataset**:
+```{r}
+kable(head(df,3), "html") %>% kable_styling("striped") %>% scroll_box(width = "100%") 
+```
+
+
+#### **(iii)Column names present in the dataset**:
+```{r}
+colnames(df)
+```
+
+#### **(iv)Structure of the data which gives each columns data type along with number of observation and variables present**:
+```{r}
+str(df)
+```
+
+#### **(v)Summary Statistics of the dataset**:
+```{r}
+summary(df)
+
+```
+
+#### **(vi)Dimensions of the dataset**:
+```{r}
+dim(df)
+```
+
+
+
+
+
+* * *
+
+* * *
+
+## **Objectives**:
+
+
+### 1.Cleaning and preprocessing the data to make it ready for Exploratory Data Analysis.
+
+### 2.Analysing the restaurants based on numerous factors like establishments,locality,cusine types,timings,price range,ratings,votes,delivery options.
+* Univariate Analysis on Overall Dataset
+* Geo-Spatial Analysis on India.
+* Univariate and Bivariate Analysis on Chennai and its locality
+* Univariate Analysis on Mumbai
+* Bivariate Analysis on top 10 cities of india.
+
+### 3.Comparing customer's favourite cuisine type that are present among different cities.
+
+### 4.Finding the price range that is suitable for customers among different cities.
+
+### 5.Analysing the same restaurant's branch present in different locality and determining  the quality among them with the help of customer ratings.
+
+### 6.Doing inferential statistics with the data(ANOVA TEST,Correlation test)
+
+### 7.Also predicting whether a new restaurant can be successfull on partnering with zomato using Machine Learning models(i.e)to predict the suitable cost of the new restaurant based on the various factors
+
+
+
+
+* * *
+
+## **Is there any work previously reported on the problem and the data? If so, discuss it here.**
+
+### ANSWER:There is only one analysis done before on the dataset I have selected and it is a very brief analysis on taking only a small subset of the dataset.The person has selected restaurants present only in Bangalore City and has  found the major restaurant establishments present,Localities with the maximum number of restaurant in Bangalore.
+
+
+
+* * *
+
+
+
+* * *
+
+## **Cleaning the dataset**
+
+### Removing duplicate data and columns that are not useful for Analysis
+```{r}
+
+df1=df[,-c(1,4,5,7,11,12,13,15,18)]
+df1=unique(df1)
+```
+#### Here we removed restaurant id,restaurant url details,restaurant address,city id,zipcode,country id,locality verbose,currency
+
+
+### Establishment Column
+
+```{r}
+df1%>%
+distinct(establishment)
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(establishment)))
+
+df1=df1%>%
+  mutate(establishment=gsub("\\[|\\]", "", establishment))
+
+df1=df1%>%
+  mutate(establishment=gsub("'", "", establishment))
+
+df1=df1%>%
+  mutate(establishment=gsub("Ã©", "e", establishment))
+
+df1=df1%>%
+  mutate(establishment=replace(establishment,establishment=="","Not Mentioned"))
+
+df1%>%
+  distinct(establishment)
+```
+#### There are 27 establishment type present in india.Here we find that there is no missing data but there are empty strings present which we replace to "Not Mentioned" and we can remove the brackets,special characters and quotation marks present.
+
+
+### Cuisine 
+
+```{r}
+#df1%>%
+ # distinct(cuisines)
+
+#df1%>%
+ # filter(cuisines=="")
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(cuisines)))
+
+df1=df1%>%
+  mutate(cuisines=replace(cuisines,cuisines=="","Not Given"))
+
+```
+#### There are no missing values but there are empty string so we replace it to ""Not given"
+
+### Average cost for two
+```{r}
+#df1%>%
+ # distinct(average_cost_for_two)
+
+
+table(df1$average_cost_for_two)
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(average_cost_for_two)))
+class(df1$average_cost_for_two)
+
+#remove rows having average cost as 0
+df1=df1%>%
+  filter(average_cost_for_two!=0)
+
+
+
+table(df1$average_cost_for_two)
+```
+#### There are some restaurants having average cost as 0 which is not useful for analysis.So we can remove these restaurants. 
+
+
+### Highlights
+```{r}
+a=df1%>%
+  select(highlights)
+a[c(1:3),]
+
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(highlights)))
+
+#df1%>%
+ # distinct(highlights)
+
+df1=df1%>%
+  mutate(highlights=replace(highlights,highlights=="","Highlights Not mentioned"))
+
+
+df1=df1%>%
+  mutate(highlights=gsub("\\[|\\]", "", highlights))
+
+df1=df1%>%
+  mutate(highlights=gsub("'", "", highlights))
+
+
+
+```
+
+#### Here we replace the empty strings present in Highlights column to "Highlights not mentioned".The brackets and quotation marks are also removed .
+
+
+
+
+### Rating text
+```{r}
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(rating_text)))
+
+df1%>%
+  distinct(rating_text)
+
+a=df1$aggregate_rating
+
+df1$rating_text=ifelse(a==0,"Not Rated",
+                ifelse(a>0 & a<2.5,"Poor",
+                ifelse(a>=2.5 & a<3.5,"Average",
+                ifelse(a>=3.5 & a<4,"Good",
+                ifelse(a>=4 & a<4.5,"Very Good",
+                ifelse(a>=4.5 & a<5,"Excellent",NA))))))
+
+df1%>%
+  summarise(ctnmiss=sum(is.na(rating_text)))
+
+df1%>%
+  distinct(rating_text)
+```
+
+#### There are no missing values in the column.But the column has rating text written in other languages apart from english.Since the rating text is based upon the aggregate rating column.We can change the data based upon the condition as :if rating is 0 the corresponding rating text is "Not Rated",if rating is between 0 and 2.5 it is "Poor" ,if the rating is between 2.5 and 3.5 it is "average",between 3.5 to 4 is "Good",between 4 to 4.5 is "Very Good",between 4.5 to 5 is "Excellent".
+
+
+### Votes
+
+
+
+```{r}
+df1%>%
+  summarise(ctnmiss=sum(is.na(votes)))
+
+#df1%>%
+#  distinct(votes)
+a=df1%>%
+  filter(votes<100)%>%
+  distinct(votes)
+a
+
+boxplot(a$votes)
+
+
+df1=df1%>%
+  mutate(votes=replace(votes,votes==-3,0))%>%
+  mutate(votes=replace(votes,votes==-18,0))
+
+
+summary(df1$votes)
+```
+#### There are no missing values in votes column but there are outliers present in it,there are votes less than 0 which is not possible.So it is replaced by 0. 
+
+
+### Opentable support
+
+```{r}
+df1%>%
+  summarise(ctnmiss=sum(is.na(opentable_support)))
+df1%>%
+  distinct(opentable_support)
+
+df1=df1%>%
+  select(-(opentable_support))
+
+dim(df1)
+
+```
+#### There is only one factor in opentable support which is not usefull for analysis so the column is removed.
+
+
+
+### Delivery
+
+
+```{r}
+df1%>%
+  summarise(ctnmiss=sum(is.na(delivery)))
+
+df1%>%
+  distinct(delivery)
+
+table(df1$delivery)
+
+ 
+
+rr=df1%>%
+  filter(name=="Rasavid")%>%
+  select(name,locality,delivery)
+
+kable(rr, "html") %>% kable_styling("striped") %>% scroll_box(width = "100%") 
+
+df1=df1%>%
+  mutate(delivery=replace(delivery,delivery==0,1))
+
+df1=unique(df1)
+dim(df1)
+
+table(df1$delivery)
+
+
+```
+
+#### There are no missing values.There are three factors present in delivery column they are -1,0 and 1 . -1 corresponds to not deliverable whereas 0 and 1 corresponds to deliverable.On looking at the restaurants having delivery as 0,the same restaurant names also have a row with delivery as 1.So clearly the rows with 0 are duplicated.So it is replaced with 1 to avoid redundancy and to make it simple for analysis.
+
+### Takeaway
+
+```{r}
+df1%>%
+  summarise(ctnmiss=sum(is.na(takeaway)))
+df1%>%
+  distinct(takeaway)
+
+table(df1$takeaway)
+
+df1=df1%>%
+  select(-(takeaway))
+
+dim(df1)
+```
+#### The takeaway columns have only 1 factor which is not usefull for analysis.So it is removed.
+
+```{r}
+
+sapply(df1,function(x) sum(is.na(x)))
+
+```
+
+
+* * *
+
+* * *
+## **Overall Analysis(INDIA)**
+
+### **(i)Univariate Analysis on India**
+
+### Loading Useful Package
+```{r}
+
+pkgs <- c( "data.table","RColorBrewer", "wesanderson", 
+          "viridis", "ggplot2", "corrplot","dplyr","lattice","Hmisc","tidytext")
+
+rc <- sapply(pkgs, function(x){
+  library(package = x, character.only = T, logical.return = T)
+}, simplify = F)
+
+
+df=data.table(read.csv("zomatocleaned1.csv"))
+
+```
+
+
+
+## Based on City
+### Cities and restaurant count
+
+```{r}
+
+#cites and their restaurant count
+res_city <- dcast(df, city ~.)
+
+
+names(res_city)[1] <- "City"
+names(res_city)[2] <- "Count"
+
+
+res_city <- res_city[order(Count, decreasing = T)]
+res_city
+
+```
+
+#### **INFERENCE:**From the table we can see that Chennai city has the highest number of restaurants followed by Mumbai,Bangalore,Pune and others.
+
+
+### Barplot on cities having more than 800 restaurants.
+```{r}
+a=res_city%>%
+  filter(Count>800)
+
+
+barplot(height = a$Count, names.arg = a$City, 
+        col = rainbow(length(a$City)), main = "No. of restaurants per city",
+         ylab = "frequency", las = 2)
+
+
+```
+
+#### **INFERENCE:**There are 22 cities having restaurants more than 800.Chennai,Mumbai and Bangalore have more than 2000 restaurants.
+
+## Based on Establishment
+
+### Barplot on number of restaurants by establishment type
+```{r}
+
+b=df%>%
+  group_by(establishment)%>%
+  summarise(Count=n())%>%
+  arrange(desc(Count))
+
+barplot(height = b$Count, names.arg = b$establishment , 
+        col = rainbow(n = length(b$establishment)), 
+        main = "No. of restaurants per Establishment"
+        , ylab = "frequency", las = 2,cex.names = 0.7)
+
+```
+
+#### **INFERENCE:**From the barplot we can see that most of the restaurants in india are established as Quick Bites,Casual Dining.The least established types are shack,Cocktail Bar,Irani Cafe,Pop up.
+
+
+
+## Based on Rating text
+
+### No of restaurants by rating text
+
+
+```{r}
+cd=df%>%
+  group_by(rating_text)%>%
+  summarise(con=n())%>%
+  arrange(desc(con))
+
+ggplot(data=cd,mapping=aes(x=reorder(rating_text,-con),y=con))+geom_bar(stat = "identity",aes(fill=rating_text))
+
+```
+
+
+#### **INFERENCE:**We can see that majority of the restaurant have got "Good" as the rating followed by "Average","Very Good".There are almost 10000 restaurants have not got many aggregate ratings from the customers,Hence they have been marked as "Not Rated".Around 2500 restaurants have Excellent ratings and very few have poor ratings.
+
+### Restaurants based on the ratings and city wise
+
+```{r}
+
+db=dcast(df,city~rating_text)
+db
+```
+
+## Based on Aggregate ratings
+
+```{r}
+
+ggplot(df, aes(x = aggregate_rating)) + geom_histogram(col = "red", fill = "yellow")
+
+```
+
+
+#### **INFERENCE:** We can see from the histogram that many of the restaurants have aggregate rating as 0 which means these restaurants are not rated.Hence we will plot the histogram only for restaurants that are rated by the customers.
+
+
+```{r}
+df1=df%>%
+  filter(aggregate_rating!=0)
+
+ggplot(df1, aes(x = aggregate_rating)) + geom_histogram(col = "red", fill = "yellow",bins=32) 
+densityplot(df1$aggregate_rating)
+
+```
+
+
+#### **INFERENCE:**From the Histogram and density plot we can see that majority of the rating scores are in the range of 3.6 to 4.2
+
+
+
+
+## Based on price range
+
+### Barplot on number of restaurants based on price range
+```{r}
+df$price_range=as.factor(df$price_range)
+ggplot(df,aes(x=price_range))+geom_bar(aes(fill=price_range))
+
+```
+
+####  **INFERENCE:**Most of the restaurants are present in price range 1 which corresponds to cheap followed by 2,3 and 4 which corresponds to costly.
+
+
+### Pie chart on price range distribution
+```{r}
+
+f=table(df$price_range)
+f=as.data.frame.table(f)
+f
+lbls=c("I-","II-","III-","IV-")
+pct=round(f$Freq/sum(f$Freq)*100)
+lbls=paste(lbls,pct)
+lbls=paste(lbls,"%",sep="")
+pie(f$Freq,labels = lbls,col = rainbow(length(f$Var1)),radius =1 )
+
+
+```
+
+#### **INFERENCE:**We can see that 50% of the restaurants are in the price range 1.
+
+### Delivery
+
+```{r}
+
+#Delivery
+g=table(df$delivery)
+g=as.data.frame.table(g)
+
+lbls=c("No","Yes")
+pct=round(g$Freq/sum(g$Freq)*100)
+lbls=paste(lbls,pct)
+lbls=paste(lbls,"%",sep="")
+
+pie(g$Freq,labels=lbls,col=rainbow(length(g$Var1)),radius =1 )
+
+```
+
+#### **INFERENCE:**We can see that majority of the restaurants do not have delivery option.
+
+
+
+
+
+## Based on Average cost for two
+
+### Frequency distribution on average cost for two.
+```{r}
+
+
+res=dcast(df, cut2(df$average_cost_for_two, g = 20)~.)
+names(res) <- c("cost_for_two_bin", "count")
+which.min(res$count)
+res
+ggplot(data=res,mapping=aes(x=cost_for_two_bin,y=count,fill=cost_for_two_bin))+geom_bar(stat = "identity")+theme(axis.text.x = element_text(angle = 70, vjust = .6))
+```
+
+#### **INFERENCE:** Based on the plot we can see that restaurants with the price range of 309 to 404 have the highest count followed by restaurants with price range of 160 to 208 and so on.Restaurants with price range 505 to 592 have the least number of restaurants
+
+
+## Based on Cuisines
+
+### Top 5 cuisines in India
+```{r}
+
+
+library(tidytext)
+
+a=df%>%
+  select(cuisines)
+a[1,]
+
+p=df%>%
+  select(cuisines)%>%
+  unique()%>%
+  mutate(cuisines=as.character(cuisines))%>%
+  unnest_tokens(ngram,cuisines,token = 'ngrams',n=2)%>%
+  group_by(ngram)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))%>%
+  top_n(5)
+
+p$ngram[4]="Chinese"
+
+ggplot(p,aes(x=reorder(ngram,-n),y=n))+geom_bar(stat='identity',fill='#cb202d')
+
+```
+
+#### **INFERENCE:** Majority of the restaurants have north Indian Cuisine followed by fast food ,South Indian,Chinese and Street food. 
+
+## Based on  Highlights
+
+
+### Top 10 Highlights
+```{r}
+
+
+rw=df%>%
+  select(highlights)%>%
+  unique()%>%
+  mutate(highlights=as.character(highlights))%>%
+  unnest_tokens(ngram,highlights,token = 'ngrams',n=2)%>%
+  group_by(ngram)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))%>%
+  top_n(10)
+rw
+
+ggplot(rw,aes(x=reorder(ngram,-n),y=n))+geom_bar(stat='identity',fill='#cb202d')+
+  theme(axis.text.x = element_text(angle = 20, vjust = .6))
+```
+
+#### **INFERENCE:**Majority of the restaurants higlights are about takeaway availability,indoor seating,credit card,debit card,AC and so on.
+
+
+## **(ii)Geo spatial analysis**:
+
+```{r}
+#latitude and longitude
+library(maps)
+library(ggmap)
+library(ggridges)
+
+ll=read.csv("zomatocleanedwithlatandlong.csv")
+
+ll=ll%>%
+  filter(longitude>67&longitude<98&latitude>8 &latitude<38)
+
+indiamap=map_data("world")
+indiamap=indiamap%>%filter(region=="India")
+indiamap=fortify(indiamap)
+zomat=ll%>%select(latitude,longitude,price_range)%>%
+  mutate(price_range=as.factor(price_range))
+p=ggplot()
+p=p+geom_map(data=indiamap,map=indiamap,aes(x=long,y=lat,group=group,map_id=region),fill="white", colour="#7f7f7f", size=1)
+p=p+geom_point(data=zomat,aes(x=longitude,y=latitude,colour=price_range),size=3,shape=17)
+p
+```
+
+#### **INFERENCE:** We can see that most of the points represents restaurants with price range 1 and price range 2.Cities like Chennai,Kochi,Mumbai,Kolkata,Pune show some restaurants with price range 3.Cities like Goa,New Delhi show some restaurants with price range 4
+
+
+
+## **Analysis on restaurants in Chennai**
+
+### **(iii)Univariate Analysis on Chennai**:
+
+```{r}
+remove(df)
+
+df=data.table(read.csv("zomatocleaned1.csv"))
+
+df$establishment=as.factor(df$establishment)
+df$city=as.factor(df$city)
+df$price_range=as.factor(df$price_range)
+
+df$rating_text=as.factor(df$rating_text)
+df$delivery=as.factor(df$delivery)
+
+
+df1=df%>%
+  filter(city=="Chennai")
+
+
+
+```
+
+
+## Based on Establishment
+
+### Number of restaurants based on establishment
+```{r}
+b=df1%>%
+  group_by(establishment)%>%
+  summarise(Count=n())%>%
+  arrange(desc(Count))
+
+barplot(height = b$Count, names.arg = b$establishment , 
+        col = rainbow(n = length(b$establishment)), 
+        main = "No. of restaurants per establishment"
+        , ylab = "frequency", las = 2,cex.names = 0.7)
+
+```
+
+#### **INFERENCE:** From the barplot we can see that there are a lot of restaurants established as Casual Dining followed by Quick Bites,Dessert Parlour,Cafe and so on.
+
+
+
+## Based on Locality
+
+### Top 15 localities in Chennai based on number of restaurants.
+```{r}
+
+c=df1%>%
+  group_by(locality)%>%
+  summarise(Count=n())%>%
+  arrange(desc(Count))%>%
+  top_n(15)
+
+
+barplot(height = c$Count, names.arg = c$locality , 
+        col = topo.colors(n =15), 
+        main = "Top 15 localities"
+        , ylab = "frequency", las = 2,cex.names = 0.7)
+```
+
+#### **INFERENCE:** Nungambakkam has the highest number of restaurants followed by T.Nagar,Anna Nagar East,Adyar and so on.
+
+
+## Based on average cost for two:
+
+### Frequency distribution on average cost for two.
+
+```{r}
+res=suppressMessages(dcast(df1, cut2(df1$average_cost_for_two, g = 10)~.,value.var = "average_cost_for_two"))
+names(res) <- c("cost_for_two_bin", "count")
+res
+
+ggplot(data=res,mapping=aes(x=cost_for_two_bin,y=count,fill=cost_for_two_bin))+geom_bar(stat = "identity")+theme(axis.text.x = element_text(angle = 50, vjust = .6))
+```
+
+#### **INFERENCE:** Restaurants with average cost from 40 to 250 are high in number followed by 330 to 450 ,650 to 850 and so on.
+
+### Boxplot on the cost:
+```{r}
+
+boxplot(df1$average_cost_for_two,horizontal = T,col = "orange")
+
+summary(df1$average_cost_for_two)
+
+```
+#### **INFERENCE:**Most of the costs are around the range of 300 to 850.
+
+
+## Based on Aggregate rating
+
+### Box plot on aggregate ratings
+```{r}
+df2=df1%>%
+  filter(aggregate_rating!=0)
+boxplot(df2$aggregate_rating,horizontal = T,col="lightgreen")
+summary(df2$aggregate_rating)
+```
+
+
+
+```{r}
+df2=df1%>%
+  filter(aggregate_rating!=0)
+
+a=mean(df2$aggregate_rating)
+a=round(a,2)
+df2%>%
+  ggplot(aes(x=aggregate_rating))+
+  geom_density(fill="blue",alpha=0.5)+
+  geom_vline(xintercept=a,color="red")+
+  geom_text(aes(x=a-0.4),label=paste0("Mean= ",a),y=0.97)
+```
+
+#### **INFERENCE:** Most of the ratings are around 3.6 to 4.2
+
+## Based on Cuisine
+
+### Top 5 cuisines in Chennai
+
+```{r}
+
+
+
+p1=df1%>%
+  select(cuisines)%>%
+  unique()%>%
+  mutate(cuisines=as.character(cuisines))%>%
+  unnest_tokens(ngram,cuisines,token = 'ngrams',n=2)%>%
+  group_by(ngram)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+
+p1=p1[-c(5,7,8,9),]
+p=p1%>%
+  top_n(5)
+
+
+p[3,1]="chinese"
+
+ggplot(p,aes(x=reorder(ngram,-n),y=n))+geom_bar(stat='identity',fill='#cb202d')
+```
+
+#### **INFERENCE:** Majority of the restaurants have north Indian Cuisine followed by South Indian,Chinese ,fast food and Street food.
+
+
+
+### Word Cloud on Cuisine types
+```{r}
+library(wordcloud2)
+wordcloud2(p1)
+```
+
+
+## Based on Highlights
+
+### Top 10 highlights
+```{r}
+
+
+
+
+rw1=df1%>%
+  select(highlights)%>%
+  unique()%>%
+  mutate(highlights=as.character(highlights))%>%
+  unnest_tokens(ngram,highlights,token = 'ngrams',n=2)%>%
+  group_by(ngram)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+
+rw=rw1%>%
+  top_n(10)
+
+
+
+ggplot(rw,aes(x=reorder(ngram,-n),y=n))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 30, vjust = .6))
+
+```
+
+### Word Cloud on top 100 Highlights
+```{r}
+rw2=rw1[1:75,]
+wordcloud2(rw2)
+```
+
+
+
+## Based on Rating text
+
+### Number of restaurants by rating text
+
+```{r}
+
+x=table(df1$rating_text)
+x=as.data.frame.table(x)
+lbls=c("Average","Excellent","Good","Not Rated","Poor","Very Good")
+pct=round(x$Freq/sum(x$Freq)*100)
+lbls=paste(lbls,pct)
+lbls=paste(lbls,"%",sep="")
+pie(x$Freq,labels=lbls,col=rainbow(length(x$Var1)),radius =1 )
+
+
+```
+
+#### **INFERENCE:**Majority of the restaurants have Good ,Very Good and Average rating
+
+
+
+###  **(iv)Bivariate analysis on Chennai:**
+
+### Number of restaurants based on locailty and establishment
+
+```{r}
+
+df2=df1%>%
+  filter(locality=="Nungambakkam"|locality=="T. Nagar"|locality=="Anna Nagar East"|locality=="Adyar"|locality=="Velachery")
+
+
+bp=ggplot(data = df2) + 
+  geom_bar(mapping = aes(x = locality, fill = establishment),colour="black", position = "dodge")
+
+bp
+
+
+
+```
+
+
+#### **INFERENCE:** Analysis is done based on the top 5 localities in Chennai,All the localities have Casual dining restaurants high in number.Followed by that,Nungambakkam has Cafe in 2nd place.Whereas Anna Nagar East has Dessert parlour in 2nd place .T Nagar,Velachery and Adyar have Quick Bites in 2nd place.In 3rd place T nagar,Adyar has Sweet Shop.Anna Nagar East has cafe.Nungamabakkam has quick bites.Velachery has Desert Parlour.Bars and Pubs were the least in all of the locality.
+
+### locality and price range
+
+```{r}
+ggplot(data = df2) + 
+  geom_bar(mapping = aes(x = locality, fill = price_range),colour="black", position = "dodge")
+```
+
+
+
+
+#### **INFERENCE:**T.Nagar,Velachery,Anna Nagar East and Adyar have restaurants with price range "1" in high numbers followed by price range 2 and 3.Nungambakkam has price range "2" in the 1st place followed by price range "1","3" and "4".From the 5 localities only Nungambakkam has restaurants with price range "4"
+
+
+### LOCALITY AND REVIEWS
+```{r}
+bp=ggplot(data = df2) + 
+  geom_bar(mapping = aes(x = locality, fill = rating_text),colour="black", position = "dodge")
+bp
+
+```
+
+#### **INFERENCE:** From the top 5 localities in Chennai.Adyar,Anna Nagar East and Nungambakkam have restaurants with rating "Very Good" in 1 st place.Whereas T.Nagar and Velachery have restaurants with rating "Good" in 1 st place.We can see that quality of restaurants in T.Nagar and Velachery is less compared to Adyar,Anna Nagar East and Nungambakkam.In 2nd place,Adyar ,Anna Nagar East and Nungambakkam have restaurants with rating "Good".T.Nagar and Velachery have restaurants with rating "Very good" in 2nd place.In the 3rd place Adyar,Anna Nagar East and Velachery have restaurants with rating "Average".Nungambakkam and T.Nagar have restaurants with rating "Excellent".All the locality have restaurants with "poor" rating low.
+
+### Top 10 localities having restaurants with the least average cost  
+
+```{r}
+b=df1%>%
+  group_by(locality)%>%
+  summarise(avgprice=mean(average_cost_for_two))%>%
+  arrange(desc(-avgprice))%>%head(n=10)
+
+b[2,1]="Thuraipakkam"
+b[10,1]="Guduvancheri"
+b
+
+b%>%ggplot(aes(x=reorder(locality,avgprice),y=avgprice,fill=locality))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 70, vjust = .5))
+
+
+```
+
+#### **INFERENCE:** Kelambakkam has restaurants with the overall average cost to be 80.Hence most of the  restaurants in this locality provides the cheapest in the city.
+
+
+### Restaurant count based on Cuisine
+```{r}
+p=df2%>%
+  select(cuisines,locality)%>%
+  unique()%>%
+  mutate(cuisines=as.character(cuisines))%>%
+  unnest_tokens(ngram,cuisines,token = 'ngrams',n=2)%>%
+  group_by(ngram,locality)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+
+w=head(p,n=24)
+
+
+w=w[-c(21,23,19,24),]
+
+w=w%>%
+  mutate(ngram=replace(ngram,ngram=="indian chinese","Chinese"))
+ggplot(data = w) + 
+  geom_bar(mapping = aes(x = locality,y=n, fill = ngram),colour="black",position = "dodge",stat = "identity")
+```
+
+#### **INFERENCE:** All the top 5 localities have restaurants providing "North Indian" cuisine in 1 st place.In the 2nd place Adyar,T.Nagar and Velachery have restaurants providing "South Indian" Cuisine .Anna Nagar East has restaurants providing "fast food" Cuisine and Nungambakkam has restaurants providing "Chinese" Cuisine.In 3rd place,Adyar and Velachery has restaurants providing "fastfood",Anna Nagar East and Nungambakkam have south indian cuisine,T.Nagar has chinese cusine. 
+
+
+### Restaurant count based on establishment and price range
+
+
+
+```{r}
+df1$price_range=as.factor(df1$price_range)
+
+df2=df1%>%
+  filter(establishment=="Casual Dining"|establishment=="Quick Bites"|establishment=="Dessert Parlour"|establishment=="Cafe"|establishment=="Beverage Shop")
+
+ggplot(data = df2) + 
+  geom_bar(mapping = aes(x = establishment, fill = price_range),position = "dodge")
+```
+
+
+#### **INFERENCE:** Most of the beverage shop have a price range of 1 with very few having price range 2.Most of Cafe's have price range of 2 followed by 1,3 and 4.Most of the casual Dinings have price range 2 followed by 3,1 and 4.Most of the Desserts Parlour and Quick Bites have price range 1 followed by 2 and 3.
+
+
+### Top establishments and their aggregate ratings
+
+```{r}
+
+
+df2=df1%>%
+  filter(establishment=="Casual Dining"|establishment=="Quick Bites"|establishment=="Dessert Parlour"|establishment=="Cafe"|establishment=="Beverage Shop")
+df2$establishment=factor(df2$establishment)
+
+df2=df2%>%
+  filter(aggregate_rating!=0)
+
+df2%>%
+  group_by(establishment)%>%
+  summarise(median=median(aggregate_rating),mean=mean(aggregate_rating),minimum=min(aggregate_rating),maximum=max(aggregate_rating))
+
+boxplot(df2$aggregate_rating~df2$establishment,las=2,xlab = "",col=rainbow(length(unique(df2$establishment))))
+```
+
+
+
+### Relationship between aggregate ratings and price range
+
+```{r}
+a=df1%>%
+  filter(aggregate_rating!=0)
+
+a%>%
+  group_by(price_range)%>%
+  summarise(median=median(aggregate_rating),mean=mean(aggregate_rating),minimum=min(aggregate_rating),maximum=max(aggregate_rating))
+
+boxplot(a$aggregate_rating~a$price_range,col=rainbow(length(unique(a$price_range))))
+```
+
+#### **INFERENCE:** As the price range increases the aggregate ratings also tends to increase 
+
+
+
+## Restaurant chains in Chennai 
+
+```{r}
+
+df1=df1%>%
+  select(-timings)
+
+eo=df1%>%
+  select(-delivery,-cuisines,-highlights)
+
+eo=unique(eo)
+
+eo=eo%>%
+  select(name)%>%
+  group_by(name)%>%
+  summarise(count=n())
+  
+
+chains=eo%>%
+  filter(count>10)
+
+ggplot(chains,aes(x=reorder(name,-count),y=count))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 70, vjust = .5))
+
+```
+
+
+#### **INFERENCE:** Ibaco has the largest restaurant chain in Chennai followed by A2B,lassi Shop,Saravan Bhavan and so on.
+
+### Restaurants with small chains around Chennai
+
+```{r}
+chainsmall=eo%>%
+  filter(count>5 &count<9)
+chainsmall
+```
+
+
+
+### Quality of KFC in different localities of chennai based on aggregate ratings
+
+```{r}
+c=df1%>%
+  select(-delivery,-cuisines,-highlights)%>%
+  filter(name=="KFC")
+
+c=unique(c)
+
+ggplot(c,aes(x=reorder(locality,-aggregate_rating),y=aggregate_rating))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 60, vjust = .6))
+```
+
+
+#### **INFERENCE**:Quality of KFC is very good in Chrompet locality.Followed by Navallur,Anna nagar West and so on.
+
+
+### Quality of A2B in different localities of chennai based on aggregate ratings
+
+```{r}
+d=df1%>%
+  select(-delivery,-cuisines,-highlights)%>%
+  filter(name=="A2B - Adyar Ananda Bhavan")
+  
+  
+d=unique(d)
+d=d[c(-3,-18,-27),]
+
+
+ggplot(d,aes(x=reorder(locality,-aggregate_rating),y=aggregate_rating))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 60, vjust = .6))
+
+
+```
+
+#### **INFERENCE**:Quality of A2B is good in Adyar locality.Followed by Ashok Nagar,Anna nagar West and so on.
+
+
+### Quality of Saravana Bhavan in different localities of chennai based on aggregate ratings
+```{r}
+
+e=df1%>%
+  select(-delivery,-cuisines,-highlights)%>%
+  filter(name=="Hotel Saravana Bhavan")
+e=unique(e)  
+e=e[c(-5,-7,-9,-12,-17)]
+
+e[10,4]="Thousand Lights"
+
+ggplot(e,aes(x=reorder(locality,-aggregate_rating),y=aggregate_rating))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 60, vjust = .6))
+
+```
+
+#### **INFERENCE**:Quality of Saravana Bhavan is very good in Vadapalani locality.Followed by Ashok Nagar,Egmore and so on.
+
+## Restaurant chains in Mumbai 
+```{r}
+
+
+df3=df%>%
+  filter(city=="Mumbai")
+
+df3=df3%>%
+  select(-timings)
+
+eo=df3%>%
+  select(-delivery,-cuisines,-highlights)
+
+eo=unique(eo)
+
+eo=eo%>%
+  select(name)%>%
+  group_by(name)%>%
+  summarise(count=n())
+  
+
+chains=eo%>%
+  filter(count>10)
+chains
+
+ggplot(chains,aes(x=reorder(name,-count),y=count))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 70, vjust = .5))
+
+
+
+
+```
+
+#### **INFERENCE**: Cafes like "Keventers","Ek cutting" has the largest restaurant chain in Mumbai followed by dessert parlours and fast food restaurants like Subway and KFC.
+
+
+### Restaurants with small chains around Mumbai
+```{r}
+chainsmall=eo%>%
+  filter(count>5 &count<9)
+chainsmall
+```
+
+
+
+### Quality of KFC in different localities of Mumbai based on aggregate ratings
+```{r}
+
+c=df3%>%
+  select(-delivery,-cuisines,-highlights)%>%
+  filter(name=="KFC")
+
+c=unique(c)
+c=c[c(-12,-8)]
+
+c[1,4]="Bandra West"
+c[2,4]="Andheri West"
+c[7,4]="Kandivalli East"
+
+ggplot(c,aes(x=reorder(locality,-aggregate_rating),y=aggregate_rating))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 60, vjust = .6))
+
+```
+
+#### **INFERENCE**:Quality of KFC is very good in Sakinaka  locality.Followed by Bandra West,Powai and so on.
+
+### Quality of Behrouz Biriyani in different localities of Mumbai based on aggregate ratings
+```{r}
+
+c=df3%>%
+  select(-delivery,-cuisines,-highlights)%>%
+  filter(name=="Behrouz Biryani")
+
+c=unique(c)
+
+
+ggplot(c,aes(x=reorder(locality,-aggregate_rating),y=aggregate_rating))+geom_bar(stat='identity',fill='#cb202d')+theme(axis.text.x = element_text(angle = 60, vjust = .6))
+
+
+```
+
+#### **INFERENCE**:Quality of Behrouz Biriyani is very good in Bandra West locality.Followed by Santacruz,Girgaum and so on.
+
+### **(v)Univariate Analysis on Mumbai:**
+
+### Frequency distribution on average cost for two.
+```{r}
+
+res=suppressMessages(dcast(df3, cut2(df3$average_cost_for_two, g = 10)~.,value.var = "average_cost_for_two"))
+names(res) <- c("cost_for_two_bin", "count")
+res
+
+ggplot(data=res,mapping=aes(x=cost_for_two_bin,y=count,fill=cost_for_two_bin))+geom_bar(stat = "identity")+theme(axis.text.x = element_text(angle = 50, vjust = .6))
+
+
+```
+
+#### **INFERENCE:** Restaurants with average cost from 600 to 750 are high in number followed by 50 to 250 ,1800 to 2500 and so on.We can see that mumbai has well balanced number of restaurants in every price range
+
+### Top 5 cuisines in Mumbai
+
+```{r}
+
+p1=df3%>%
+  select(cuisines)%>%
+  unique()%>%
+  mutate(cuisines=as.character(cuisines))%>%
+  unnest_tokens(ngram,cuisines,token = 'ngrams',n=2)%>%
+  group_by(ngram)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+
+p1[3,1]="chinese"
+p=p1%>%
+  top_n(5)
+
+
+ggplot(p,aes(x=reorder(ngram,-n),y=n))+geom_bar(stat='identity',fill='#cb202d')
+
+```
+
+#### **INFERENCE:** Majority of the restaurants have north Indian Cuisine followed by fast food,Chinese ,South Indian and Street food.
+
+### Word Cloud on Cuisine types in mumbai
+```{r}
+
+wordcloud2(p1)
+```
+
+
+### **(Vi) Bivariate Analysis on top Cities in India:**
+
+### Number of restaurants based on top 5 cities and top 10 establishment
+```{r}
+df1=df%>%
+  filter(city=="Chennai"|city=="Mumbai"|city=="Bangalore"|city=="Pune"|city=="New Delhi")
+
+df1=df1%>%
+  filter(establishment=="Casual Dining"|establishment=="Quick Bites"|establishment=="Cafe"|establishment=="Dessert Parlour"|establishment=="Bakery"|establishment=="Sweet Shop"|establishment=="Beverage Shop"|establishment=="Fine Dining"|establishment=="Dhaba")
+
+
+bp=ggplot(data = df1) + 
+  geom_bar(mapping = aes(x = city, fill = establishment),colour="black", position = "dodge")
+
+bp
+
+
+```
+
+#### **INFERENCE**:In all the top 5 cities,Casual dining restaurants are more in number followed by quick bites in the 2nd spot.Bangalore and chennai have Dessert Parlour restuarants in 3rd spot whereas Mumbai and New Delhi have Fine Dining in 3rd spot.Pune has Cafe restaurant in 3rd spot.
+
+
+### Barplot on number of restaurants based on the top 10 cities and the delivery options.
+```{r}
+df1=df%>%
+  filter(city=="Agra" | city=="Chennai"|city=="Mumbai"| city=="Bangalore"| city=="Pune"|city=="New Delhi"|city=="Jaipur"|city=="Kolkata"|city=="Ahmedabad"|city=="Lucknow" )
+
+df1$delivery=as.factor(df1$delivery)
+
+ggplot(data = df1) + 
+  geom_bar(mapping = aes(x = city, fill = delivery), position = "dodge")
+
+```
+
+
+#### **INFERENCE:**Except Agra,All the other cities have less restaurants that deliver.In Agra the restaurants with delivery option is marginally high from non deliverable restaurants. 
+
+
+### Barplot on number of restaurants based on city and price_range
+```{r}
+df1=df%>%
+  filter( city=="Chennai"|city=="Mumbai"| city=="Bangalore"| city=="Pune"|city=="New Delhi"|city=="Jaipur"|city=="Kolkata"|city=="Ahmedabad"|city=="Lucknow" )
+
+df1$price_range=as.factor(df1$price_range)
+
+ggplot(data = df1) + 
+  geom_bar(mapping = aes(x = city, fill = price_range), position = "dodge")
+
+
+```
+
+#### **INFERENCE**:All the cities except ahmedabad follows the pattern of having more number of restaurants in price range "1" followed "2","3","4".In ahmedabad,restaurants with price range "2" is higher followed by "1","3" and "4".
+
+### Barplot on number of restaurants based on city and rating text
+```{r}
+df1=df%>%
+  filter(city=="Chennai"|city=="Mumbai"| city=="Bangalore"| city=="Pune"|city=="Ahmedabad")
+
+
+df1$rating_text=as.factor(df1$rating_text)
+
+ggplot(data = df1) + 
+  geom_bar(mapping = aes(x = city, fill = rating_text),colour="black", position = "dodge")
+
+```
+
+#### **INFERENCE**:From the top 5 cities in India.Cities like Bangalore and Mumbai have restaurants with rating as "Very Good" in 1st place.Ahmedabad,Chennai and Pune have restaurants with rating as "Good" in 1st place.Ahmedabad,Chennai and Pune have restaurants with rating as "Very Good" in 2nd place.Bangalore and Mumbai have restaurants with rating as "Good" in 2nd place.Ahmedabad,Chennai and Pune have restaurants with rating as "Average" in 3rd place.Bangalore and Mumbai have restaurants with rating as "Excellent" in 3rd place.In all the cities restaurants with poor ratings are in less in number.
+
+### Boxplot on aggregate ratings based on the top 5 cities
+```{r}
+
+df1$city=factor(df1$city)
+
+df1=df1%>%
+  filter(aggregate_rating!=0)
+
+boxplot(df1$aggregate_rating~df1$city,las=2,xlab = "",col=rainbow(length(unique(df1$city))))
+```
+
+#### **INFERENCE**:Bangalore has many restaurants with range of 3.9 to 4.3 with a median of around 4.1 which is highest among the 9 cities.Ahmedabad has many restaurants with range of 3.5 to 4 with a median of around 3.7 which is the lowest among the other cities.
+
+
+### Boxplot on average cost for two of the restaurants in  top 9 cities
+```{r}
+
+df1=df%>%
+  filter( city=="Chennai"|city=="Mumbai"| city=="Bangalore"| city=="Pune"|city=="New Delhi"|city=="Jaipur"|city=="Kolkata"|city=="Ahmedabad"|city=="Lucknow" )
+
+df1$city=factor(df1$city)
+
+df1=df1%>%
+  filter(average_cost_for_two<1000)
+
+boxplot(df1$average_cost_for_two~df1$city,las=2,xlab = "",col=rainbow(length(unique(df1$city))))
+
+
+```
+
+#### **INFERENCE**: Jaipur has the cheapest average cost of two with a median around 250 rupees.
+
+
+### Barplot on number of restaurants based on top 5 cities and top 6 cuisine type 
+```{r}
+
+df1=df%>%
+  filter( city=="Chennai"|city=="Mumbai"| city=="Bangalore"| city=="Pune"|city=="New Delhi")
+
+p=df1%>%
+  select(cuisines,city)%>%
+  unique()%>%
+  mutate(cuisines=as.character(cuisines))%>%
+  unnest_tokens(ngram,cuisines,token = 'ngrams',n=2)%>%
+  group_by(ngram,city)%>%
+  summarise(n=n())%>%
+  arrange(desc(n))
+
+w=head(p,n=24)
+
+
+
+
+w=w%>%
+  mutate(ngram=replace(ngram,ngram=="indian chinese","Chinese"))
+ggplot(data = w) + 
+  geom_bar(mapping = aes(x = city,y=n, fill = ngram),colour="black",position = "dodge",stat = "identity")
+
+
+
+```
+
+#### **INFERENCE**:In all the cities Restaurants with North indian cuisine is present more.Bangalore,mumbai,New Delhi and Pune have fast food cuisine in 2nd place.Whereas Chennai has South indian cuisine restaurant in 2nd place.In 3rd place all the cities have Chinese cuisine.
+
+
+## **INFERENTIAL STATISTICS :**
+
+### correlation plot with average cost for 2 ,aggregate ratings,votes and photocount
+```{r}
+
+M=cor(df[,c(7,10,12,13)])
+
+corrplot(M)
+
+
+```
+
+#### **INFERENCE** Only Photo count and peoples votes is somewhat strongly correlated. From this we can infer that the restaurant which has more number of customers taking photos has higher number of people voting/liking the restaurant.This kind of relationship might be because of the promotion/offers these restaurants give to customers who vote and share photos with their friends.
+
+
+### Correlation analysis using pearson method for photocount and votes of a restaurant
+```{r}
+
+df=df%>%
+  filter(votes<20000)
+
+
+ggplot(df,aes(x=votes,y=photo_count))+geom_point()+geom_smooth(method = "lm")
+
+
+
+cor.test(df$votes,df$photo_count,method = "pearson")
+
+
+
+```
+
+
+
+
+
+### ONE WAY ANOVA TEST-To check if there is a significant difference in the average cost for two based on rating text
+```{r}
+
+#DF1-RESTAURANTS IN TOP 5 CITIES
+
+df1=df1%>%
+  filter(average_cost_for_two<3500)
+
+
+
+df1$rating_text=as.factor(df1$rating_text)
+levels(df1$rating_text)
+
+#if not ordered, it can be reordered as follows
+df1$rating_text <- ordered(df1$rating_text,levels=c("Not Rated","Poor","Average","Good","Very Good","Excellent"))
+
+
+#visualize the data
+library(ggplot2)
+
+
+
+library(ggpubr)                                             
+ggboxplot(df1,x="rating_text",y="average_cost_for_two",color="rating_text",palette = c("red","green","blue","yellow","cyan","purple"))
+
+#mean plots
+#plot weight by group
+#add error bars: mean_seW
+
+ggline(df1,x="rating_text",y="average_cost_for_two",add = c("mean_se"))
+
+
+
+res <- aov(average_cost_for_two~rating_text,data=df1)
+summary(res)
+
+TukeyHSD(res)
+
+
+
+```
+
+#### **INFERENCE**:Since the p value of anova test is less than 0.05 there is a significant difference in average cost for two based on rating text.From the tukeyHSD Test the only difference between Good and poor ratings is not significant with an adjusted p-value greater than 0.05. 
+
+
+
+
+
+
+## **PREDICTIVE STATISTICS**:
+
+### Regression analysis-Predicting the restaurant's average cost for 2 based on the various factors using multiple regression model.
+```{r}
+
+library(ggplot2)
+
+
+
+df1=df1%>%
+  select(-name,-locality,-cuisines,-timings,-highlights)
+
+
+set.seed(123)
+library(caret)
+
+train_samples <- df1$average_cost_for_two %>%
+  createDataPartition(p=0.8,list=FALSE)
+
+#head(train_samples)
+train <- df1[train_samples,]
+test <- df1[-train_samples,]
+
+#Building a multiple regression model
+
+model <- lm(average_cost_for_two~.,data=train)
+
+
+summary(model)
+
+#Make predictions
+pred <- model %>%
+  predict(test)
+
+
+
+R2 <- R2(pred,test$average_cost_for_two)
+R2 #should be greater
+
+
+```
+
+#### **INFERENCE**:The prediction model gives an R2 score of 0.93
+
+
+
+
+
+
+
+
